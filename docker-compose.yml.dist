@@ -1,0 +1,35 @@
+version: "3"
+services:
+  tileserver:
+    image: klokantech/tileserver-gl
+    container_name: tileserver
+    volumes:
+      - ~/development/tileserver:/data
+    ports:
+      - 8080:80
+    command: -c config.json
+#  osrm-car:
+#    image: osrm/osrm-backend
+#    container_name: osrm-car
+#    volumes:
+#      - /var/docker/osrm-car:/data
+#    ports:
+#      - 5001:5000
+#    command: osrm-routed --algorithm mld /data/france.osrm
+  osrm-foot:
+    image: osrm/osrm-backend
+    container_name: osrm-foot
+    volumes:
+      - /var/docker/osrm-foot:/data
+    ports:
+      - 5000:5000
+    command: osrm-routed --algorithm mld /data/france.osrm
+  osmnames:
+    image: klokantech/osmnames-sphinxsearch
+    container_name: osmnames
+    volumes:
+      - /var/docker/osmnames-custom/input:/data/input
+      - /var/docker/osmnames-custom/index:/data/index
+      - /var/docker/osmnames-custom/sphinxsearch:/etc/sphinxsearch
+    ports:
+      - 8081:80
