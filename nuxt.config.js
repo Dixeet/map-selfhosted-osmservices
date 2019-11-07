@@ -14,12 +14,13 @@ module.exports = {
     link: [{ rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }],
   },
   loading: { color: '#fff' },
-  css: [],
-  plugins: [],
+  css: ['element-ui/lib/theme-chalk/index.css'],
+  plugins: ['@/plugins/element-ui'],
   buildModules: ['@nuxtjs/eslint-module'],
   modules: ['@nuxtjs/axios'],
   axios: {},
   build: {
+    transpile: [/^element-ui/],
     extend(config, ctx) {},
   },
   env: {

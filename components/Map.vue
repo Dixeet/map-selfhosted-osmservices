@@ -5,8 +5,8 @@
       :center="center"
       :zoom="zoom"
       :attribution-control="false"
-      hash
       @click="onClick"
+      @load="onMapLoaded"
     >
       <MglAttributionControl
         position="bottom-right"
@@ -25,7 +25,7 @@
       />
       <MglMarker
         v-if="coordinatesDeparture && coordinatesDeparture.length"
-        :coordinates="coordinatesDeparture"
+        :coordinates="departure.markerCoordinates"
         :offset="[0, -17, 0]"
         color="blue"
       />
@@ -36,6 +36,19 @@
         color="red"
       />
     </MglMap>
+    <div class="routing">
+      <el-autocomplete
+        v-model="departure.name"
+        class="inline-input"
+        placeholder="Please Input"
+        value-key="name"
+        clearable
+        :trigger-on-focus="false"
+        :fetch-suggestions="searchRoute"
+        :debounce="500"
+        @select="selectDeparture"
+      ></el-autocomplete>
+    </div>
   </div>
 </template>
 
@@ -59,6 +72,10 @@ const DEFAULT_LNG_LAT = {
   lng: 2.188494937155042,
   lat: 48.88198232489759,
 };
+const DEFAULT_COORDS = {
+  center: [2.789, 46.752],
+  zoom: 5.5,
+};
 
 export default {
   components: {
@@ -72,7 +89,7 @@ export default {
   data() {
     return {
       mapStyle: MAP_STYLE_URL,
-      center: [DEFAULT_LNG_LAT.lng, DEFAULT_LNG_LAT.lat],
+      ...DEFAULT_COORDS,
       customAttribution: [
         "<a target='_blank' href='https://datanova.legroupe.laposte.fr/explore/dataset/liste-des-communes-francaises/table/" +
           "?disjunctive.nom_complet&disjunctive.cdc&disjunctive.cheflieu&disjunctive.dep&sort=filename'>© La Poste Communes</a>",
@@ -80,7 +97,6 @@ export default {
           '?disjunctive.code_commune_insee&disjunctive.nom_de_la_commune&disjunctive.code_postal' +
           "&disjunctive.libell_d_acheminement&disjunctive.ligne_5'>© La Poste Codes Postaux </a>",
       ],
-      zoom: 16,
       geoJsonSource: {
         type: 'geojson',
         data: {
@@ -106,6 +122,11 @@ export default {
       },
       coordinatesDeparture: [],
       coordinatesArrival: [],
+      departure: {
+        name: '',
+        coordinates: [],
+        markerCoordinates: [],
+      },
     };
   },
 
@@ -116,7 +137,7 @@ export default {
   methods: {
     async onClick({ mapboxEvent, map }) {
       const route = await this.$axios.$get(
-        `${ROUTING_URL}${DEFAULT_LNG_LAT.lng},${DEFAULT_LNG_LAT.lat};${mapboxEvent.lngLat.lng},${mapboxEvent.lngLat.lat}`,
+        `${ROUTING_URL}route/v1/walking/${DEFAULT_LNG_LAT.lng},${DEFAULT_LNG_LAT.lat};${mapboxEvent.lngLat.lng},${mapboxEvent.lngLat.lat}`,
         {
           params: {
             alternatives: false,
@@ -132,12 +153,47 @@ export default {
       this.coordinatesArrival = route.waypoints[1].location;
       this.geoJsonSource.data.geometry = route.routes[0].geometry;
     },
+    async searchRoute(search, cb) {
+      let res = [];
+      if (search && search.length > 3) {
+        const {
+          data: { results },
+        } = await this.$axios.get(`${GEOCODING_URL}q/${search}.js`);
+        res = results.slice(0, 5);
+      }
+      // eslint-disable-next-line standard/no-callback-literal
+      cb(res);
+    },
+    async selectDeparture({ display_name: name, lon, lat }) {
+      Object.assign(this.departure, { name, coordinates: [lon, lat] });
+      const flyTo = this.actions.flyTo({
+        center: this.departure.coordinates,
+        zoom: 16,
+      });
+      const nearestReq = this.$axios.get(
+        `${ROUTING_URL}nearest/v1/walking/${lon},${lat}`,
+      );
+      await flyTo;
+      const nearest = await nearestReq;
+      console.log(nearest);
+    },
+    onMapLoaded({ component }) {
+      this.actions = component.actions;
+    },
   },
 };
 </script>
-<style scoped>
+<style scoped lang="scss">
 .map-container {
   height: 100vh;
   position: relative;
+  .routing {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    .inline-input {
+      min-width: 350px;
+    }
+  }
 }
 </style>
